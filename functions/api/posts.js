@@ -1,4 +1,3 @@
-const ADMIN_EMAIL = "oyibooyoma@gmail.com";
 
 export async function onRequestGet(context) {
   const { env } = context;
@@ -15,7 +14,7 @@ export async function onRequestPost(context) {
   try {
     const body = await request.json();
     const email = (body.email || "").trim().toLowerCase();
-    if (email !== ADMIN_EMAIL) {
+    if (!isAdmin(request, env)) {
       return jsonResponse({ ok: false, error: "Not authorized" }, 403);
     }
 
@@ -28,11 +27,11 @@ export async function onRequestPost(context) {
       return jsonResponse({ ok: false, error: "Add some content or media" }, 400);
     }
 
-    await env.DB.prepare(
+    const res = await env.DB.prepare(
       `INSERT INTO posts (type, title, content, media_url) VALUES (?, ?, ?, ?)`
     ).bind(type, title, content, media_url).run();
 
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, id: res.meta && res.meta.last_row_id });
   } catch (err) {
     return jsonResponse({ ok: false, error: err.message }, 500);
   }
@@ -44,7 +43,7 @@ export async function onRequestDelete(context) {
     const body = await request.json();
     const email = (body.email || "").trim().toLowerCase();
     const id = body.id;
-    if (email !== ADMIN_EMAIL) {
+    if (!isAdmin(request, env)) {
       return jsonResponse({ ok: false, error: "Not authorized" }, 403);
     }
     await env.DB.prepare(`DELETE FROM comments WHERE post_id = ?`).bind(id).run();
@@ -62,3 +61,8 @@ function jsonResponse(data, status = 200) {
   });
       }
       
+
+function isAdmin(request, env) {
+  const key = request.headers.get("x-admin-key") || "";
+  return !!env.ADMIN_KEY && key.length > 0 && key === env.ADMIN_KEY;
+      }
