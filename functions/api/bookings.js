@@ -1,10 +1,7 @@
-const ADMIN_EMAIL = "oyibooyoma@gmail.com";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
-  const url = new URL(request.url);
-  const email = (url.searchParams.get("email") || "").trim().toLowerCase();
-  if (email !== ADMIN_EMAIL) {
+  if (!isAdmin(request, env)) {
     return jsonResponse({ ok: false, error: "Not authorized" }, 403);
   }
   const { results } = await env.DB.prepare(
@@ -42,4 +39,9 @@ function jsonResponse(data, status = 200) {
     status,
     headers: { "Content-Type": "application/json" }
   });
+}
+
+function isAdmin(request, env) {
+  const key = request.headers.get("x-admin-key") || "";
+  return !!env.ADMIN_KEY && key.length > 0 && key === env.ADMIN_KEY;
 }
